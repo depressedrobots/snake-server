@@ -211,6 +211,8 @@ var getUpdateObject = function() {
 	update.tickDuration = _tickDuration;
 	update.direction = _worm.direction;
 	update.grid = _grid;
+	update.gridSizeX = GRID_SIZE_X;
+	update.gridSizeY = GRID_SIZE_Y;
 
 	return update;
 }

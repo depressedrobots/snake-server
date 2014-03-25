@@ -1,19 +1,97 @@
+<html>
+<head>
+<title>SNAKE AI client</title>
 <script src="/socket.io/socket.io.js"></script>
-<script>
+<script type="text/javascript">
+
 /**
  * webclient for SNAKE AI testbench
  */
-socket = io.connect('localhost', {
-	port: 1337
-});
+var canvas;
+var ctx;
 
-socket.on('connect', function () { 
-	console.log("socket connected");
-	socket.emit('start', null);
-});
+/**
+ * entry point
+ */
+var start = function() {
+	
+	canvas = document.getElementById('canvas');
+	ctx = null;
 
-socket.on("update", function(data) {
-	console.log("received update: " + JSON.stringify(data));
-});
+
+	if (canvas.getContext){
+          ctx = canvas.getContext('2d');
+    }
+	else {
+		console.log("error: no canvas context");
+	}
+
+	socket = io.connect('localhost', {
+		port: 1337
+	});
+
+	socket.on('connect', function () { 
+		console.log("socket connected");
+		socket.emit('start', null);
+	});
+
+	socket.on("update", function(data) {
+		console.log("received update: " + JSON.stringify(data));
+		drawGrid(data);
+	});
+};
+
+var drawGrid = function(data) {
+	var tileSizeX = canvas.width / data.gridSizeX;
+	var tileSizeY = canvas.height / data.gridSizeY;
+	
+	/*
+	 * clear canvas
+	 */
+	ctx.fillStyle = "rgb(0,0,0)";
+	ctx.fillRect(0,0,canvas.width, canvas.height);
+
+	/* 
+	 * draw grid
+	 */
+	for( var y = 0; y < data.gridSizeY; ++y ) {
+		for( var x = 0; x < data.gridSizeX; ++x ) {
+			switch(data.grid[x][y]) {
+				case 0: {		// EMPTY FIELD
+					continue;
+					break;
+				}
+
+				case 1: {		// HEAD SEGMENT
+					ctx.fillStyle = "rgb(255, 0, 0)";
+					break;
+				}
+
+				case 2: {		// BODY SEGMENT
+					ctx.fillStyle = "rgb(255, 255, 255)";
+					break;
+				}
+
+				case 3: {		// APPLE
+					ctx.fillStyle = "rgb(0, 255, 0)";
+					break;
+				}
+			}
+			console.log("" + data.grid[x][y]);
+			ctx.fillRect(x*tileSizeX, y*tileSizeY, tileSizeX, tileSizeY);
+		}
+	}
+};
 
 </script>
+
+<style type="text/css">
+      canvas { border: 1px solid black; }
+</style>
+</head>
+<body onload="start();">
+<canvas id="canvas" width="300" height="300"></canvas>
+</body>
+</html>
+
+
