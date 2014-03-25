@@ -2,38 +2,52 @@
  * Snake AI testbench. 
  * Copyright 2014 W.A.Jurczyk (wajurczyk@gmail.com)
  *
- * USAGE: node server.js {MILLISECONDS_BETWEEN_UPDATES}
+ * USAGE: node server.js [MILLISECONDS_BETWEEN_UPDATES] [PORT]
+ * Pass -1 for milliseconds to deactivate ticks. 
  */
 
 /*
  * check command line argument
  */
-if( process.argv.length < 3 || process.argv.length > 4 ) {
-	/*
-	 * four arguments expected, first two in array are path and filename, third and fourth are actual arguments
-	 */
-	console.log("\nERROR: Argument expected.\nUSAGE: node server.js {MILLISECONDS_BETWEEN_UPDATES} [PORT(optional)]\n\n");
-	process.exit(1); 
+var USAGE_STRING = "USAGE: node server.js [-1|MILLISECONDS_BETWEEN_UPDATES] [PORT(optional)]\n\n";
+
+/*
+ * tick duration argument
+ */
+var tickDuration = -1;		// default value is -1, so ticks will be deactivated.
+if( process.argv.length >= 3 ) {
+	tickDuration = parseInt(process.argv[2], 10);
 }
 
-var tickDuration = parseInt(process.argv[2], 10);
 if( isNaN(tickDuration) ) {
 	/*
 	 * unable to parse milliseconds argument
 	 */
-	console.log("\nERROR: Could not parse " + process.argv[2] + "\nUSAGE: node server.js {MILLISECONDS_BETWEEN_UPDATES}\n\n");
+	console.log("\nERROR: Could not parse " + process.argv[2] + "\n" + USAGE_STRING);
 	process.exit(1);
 }
 
+/*
+ * check custom port argument
+ */
 var port = 1337;
-if( process.argv.length == 4 ) {
+if( process.argv.length >= 4 ) {
 	port = parseInt(process.argv[3]);
 	if( isNaN(port)  ){
-		console.log("\nERROR: Could not parse port argument '" + process.argv[3] + "'.\n\n");
+		console.log("\nERROR: Could not parse port argument '" + process.argv[3] + "'." + USAGE_STRING);
 		process.exit(1);
 	}
 }
 
+/*
+ * the dimensions of the grid
+ */
+var GRID_SIZE_X = 10;
+var GRID_SIZE_Y = 10;
+
+/*
+ * start the server
+ */
 console.log("\nStarting SNAKE AI SERVER on port " + port + " with " + tickDuration + "ms per tick...\n\n");
  
 var io = require("socket.io");
