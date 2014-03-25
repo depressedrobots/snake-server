@@ -1,0 +1,10 @@
+{
+	"name": "snake-server",
+  	"description": "A websocket server to test drive snake AIs",
+    "author": "A confused individual <wojtek@depressedrobots.com>",
+	"dependencies": {
+		"socket.io": "0.9.16",
+		"socket.io-client": "0.9.16"
+	},
+	"engine": "node >= 0.8.x"
+}
