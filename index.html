@@ -9,6 +9,7 @@
  */
 var canvas;
 var ctx;
+var statusTF;
 
 /**
  * entry point
@@ -17,6 +18,7 @@ var start = function() {
 	
 	canvas = document.getElementById('canvas');
 	ctx = null;
+	statusTF = document.getElementById('statusTextField');
 
 
 	if (canvas.getContext){
@@ -24,6 +26,7 @@ var start = function() {
     }
 	else {
 		console.log("error: no canvas context");
+		statusTF.textContent = "error: no canvas context";
 	}
 
 	socket = io.connect('localhost', {
@@ -32,11 +35,17 @@ var start = function() {
 
 	socket.on('connect', function () { 
 		console.log("socket connected");
+		
+		statusTF.textContent = "connected";
+
 		socket.emit('start', null);
 	});
 
 	socket.on("update", function(data) {
-		console.log("received update: " + JSON.stringify(data));
+		
+		statusTF.textContent = "new data received";
+
+		console.log("received update: " + JSON.stringify(data, undefined, 2));
 		drawGrid(data);
 	});
 };
@@ -44,6 +53,8 @@ var start = function() {
 var drawGrid = function(data) {
 	var tileSizeX = canvas.width / data.gridSizeX;
 	var tileSizeY = canvas.height / data.gridSizeY;
+	var eyeSizeX = tileSizeX / 5;
+	var eyeSizeY = tileSizeY / 5;
 	
 	/*
 	 * clear canvas
@@ -56,6 +67,7 @@ var drawGrid = function(data) {
 	 */
 	for( var y = 0; y < data.gridSizeY; ++y ) {
 		for( var x = 0; x < data.gridSizeX; ++x ) {
+			var isHead = false;
 			switch(data.grid[x][y]) {
 				case 0: {		// EMPTY FIELD
 					continue;
@@ -63,6 +75,7 @@ var drawGrid = function(data) {
 				}
 
 				case 1: {		// HEAD SEGMENT
+					isHead = true;
 					ctx.fillStyle = "rgb(255, 0, 0)";
 					break;
 				}
@@ -77,8 +90,57 @@ var drawGrid = function(data) {
 					break;
 				}
 			}
-			console.log("" + data.grid[x][y]);
 			ctx.fillRect(x*tileSizeX, y*tileSizeY, tileSizeX, tileSizeY);
+			
+			/** 
+			 * render direction indicators if current segment is a head
+			 */
+			if( true == isHead ) {
+				var eye1X = 0, eye1Y = 0, eye2X = 0, eye2Y = 0;
+				switch( data.direction ) {
+
+					case 0: {	// up
+						eye1X = 1;
+						eye1Y = 0;
+						eye2X = 3;
+						eye2Y = 0;
+
+						break;
+					}
+
+					case 1: {	// right
+						eye1X = 4;
+						eye1Y = 1;
+						eye2X = 4;
+						eye2Y = 3;
+
+						break;
+					}
+
+					case 2: {	// down
+						eye1X = 1;
+						eye1Y = 4;
+						eye2X = 3;
+						eye2Y = 4;
+
+						break;
+					}
+
+					case 3: {	// left
+						eye1X = 0;
+						eye1Y = 1;
+						eye2X = 0;
+						eye2Y = 3;
+
+						break;
+					}
+
+				}
+				ctx.fillStyle = "rgb(255, 255, 255)";
+				ctx.fillRect(x*tileSizeX + eye1X*eyeSizeY, y*tileSizeY + eye1Y*eyeSizeY, eyeSizeY, eyeSizeY);
+				ctx.fillRect(x*tileSizeX + eye2X*eyeSizeY, y*tileSizeY + eye2Y*eyeSizeY, eyeSizeY, eyeSizeY);
+
+			}
 		}
 	}
 };
@@ -91,6 +153,8 @@ var drawGrid = function(data) {
 </head>
 <body onload="start();">
 <canvas id="canvas" width="300" height="300"></canvas>
+<br>
+<p id="statusTextField"></p>
 </body>
 </html>
 
