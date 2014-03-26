@@ -7,7 +7,8 @@ A node.js socket server to test-drive snake AIs
 Installation
 ------------
 
-npm install
+<pre><code>npm install
+</code></pre>
 
 
 Run
