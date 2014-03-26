@@ -59,6 +59,17 @@ var _snake = null;
  */
 var _grid = null;
 
+/**
+ * game status
+ */
+var _status = "not initialized";
+
+
+/**
+ * saves the last postion of crash
+ */
+var _crashPosition = null;
+
 /*
  * start the server
  */
@@ -78,19 +89,48 @@ _server.sockets.on("connection", function(socket) {
 
 	socket.on("start", function(data) {
 		console.log("received command: start");
-		startGame(socket);
+		startGame();
 		socket.emit("game started", null);
 		_server.sockets.emit("update", getUpdateObject());
 	});
 
 	socket.on("requestUpdate", function(data) {
 		console.log("received command: requestUpdate");
+		if( null == _grid ) {
+			return;
+		}
 		socket.emit("update", getUpdateObject());
 	});
+
+	socket.on("turn", function(data) {
+		if( 'undefined' == data.direction ) {
+			console.log("received command: turn. ERROR: no direction! " + JSON.stringify(data, undefined,2));
+			return;
+		}
+
+		console.log("received command: turn to " + data.direction);
+		
+		/*
+		 * perform turn
+		 */
+		turn(data.direction);
+	
+		/*
+		 * update game by one step
+		 */
+		nextTick();
+
+		/*
+		 * notify clients of new state
+		 */
+		_server.sockets.emit("update", getUpdateObject());
+	});
+
 });
 
-var startGame = function(socket) {
+var startGame = function() {
 	resetGame();
+	_status = "running";
 }
 
 /**
@@ -98,9 +138,11 @@ var startGame = function(socket) {
  */
 var resetGame = function() {
 	resetGrid();
-	resetWorm();
+	resetSnake();
 	spawnApple();
 	updateGrid();
+	_status = "waiting for start";
+	_crashPosition = null;
 }
 
 /**
@@ -117,20 +159,20 @@ var resetGrid = function() {
 }
 
 /**
- * create a new worm object with a random positon and random direction
+ * create a new snake object with a random positon and random direction
  */
-var resetWorm = function() {
+var resetSnake = function() {
 	/*
 	 * get a random direction
 	 */
 	var directionIndex = Math.floor(Math.random() * 4);
 
-	_worm = {
+	_snake = {
 		direction: directionIndex,
 		segments: [getRandomFreePosition()]
 	};
 	
-	console.log("resetting worm to: " + JSON.stringify(_worm));
+	console.log("resetting snake to: " + JSON.stringify(_snake));
 }
 
 /**
@@ -142,7 +184,7 @@ var spawnApple = function() {
 }
 
 /**
- * synchronize grid and worm object
+ * synchronize grid and snake object
  */
 var updateGrid = function() {
 	/*
@@ -170,10 +212,10 @@ var updateGrid = function() {
 	resetGrid();
 
 	/*
-	 * put the worm on the grid
+	 * put the snake on the grid
 	 */
-	for( var s = 0; s < _worm.segments.length; ++s ) {
-		var segment = _worm.segments[s];
+	for( var s = 0; s < _snake.segments.length; ++s ) {
+		var segment = _snake.segments[s];
 		/*
 		 * is this a head segment or body segment?
 		 */
@@ -209,16 +251,139 @@ var getUpdateObject = function() {
 	var update = {};
 
 	update.tickDuration = _tickDuration;
-	update.direction = _worm.direction;
+	update.direction = _snake.direction;
 	update.grid = _grid;
 	update.gridSizeX = GRID_SIZE_X;
 	update.gridSizeY = GRID_SIZE_Y;
+	update.status = _status;
+	update.crashPosition = _crashPosition;
 
 	return update;
 }
 
-/*
- * the HTML WEB SERVER PART
+/**
+ * save new direction for snake
+ */
+var turn = function(direction) {
+	_snake.direction = direction;
+}
+
+/**
+ * update game by one step
+ */
+var nextTick = function() {
+	if( _status == "game over" ) {
+		return;
+	}
+
+	/*
+	 * create vector from direction
+	 */
+	var vector = {x: 0, y: 0};
+	switch( _snake.direction ) {
+		case 0: {
+			vector.x = 0;
+			vector.y = -1;
+			break;
+		}
+
+		case 1: {
+			vector.x = 1;
+			vector.y = 0;
+			break;
+		}
+
+		case 2: {
+			vector.x = 0;
+			vector.y = 1;
+			break;
+		}
+
+		case 3: {
+			vector.x = -1;
+			vector.y = 0;
+			break;
+		}
+	}
+
+	/**
+	 * check what is in this direction
+	 */
+	var newPos = {x: _snake.segments[0].x + vector.x, y: _snake.segments[0].y + vector.y};
+
+	/**
+	 * grid boundaries
+	 */
+	if( newPos.x < 0 || newPos.x >= GRID_SIZE_X || newPos.y < 0 || newPos.y >= GRID_SIZE_Y ) {
+		_status = "game over";
+		_crashPosition = newPos;
+		return;
+	}
+
+	var value = _grid[newPos.x][newPos.y];
+
+	/**
+	 * snake segment
+	 */
+	if( value == 2 ) {
+		_status = "game over";
+		_crashPosition = newPos;
+		return;
+	}
+
+	/**
+	 * apple
+	 */
+	var appleEaten = false;
+	if( value == 3 ) {
+		
+		/*
+		 * save event for later respawn of apple
+		 */
+		appleEaten = true;
+
+		/*
+		 * remove old apple
+		 */
+		_grid[newPos.x][newPos.y] = 0;
+
+		/*
+		 * make snake longer
+		 */
+		var lastSegment = _snake.segments[_snake.segments.length-1];
+		var posOfNewSegment = {x: lastSegment.x, y: lastSegment.y};
+		_snake.segments.push(posOfNewSegment);
+	}
+	
+	/**
+	 * move snake
+	 */
+	moveSnake(newPos);
+
+	/**
+	 * respawn apple if necessary
+	 */
+	if( appleEaten ) {
+		spawnApple();
+	}
+
+}
+
+var moveSnake = function(newPos) {
+	var targetPos = {x: newPos.x, y: newPos.y};
+	for( var i = 0; i < _snake.segments.length; ++i ) {
+		var currentSegment = _snake.segments[i];
+		var lastPosOfThisSegment = {x: currentSegment.x, y: currentSegment.y};
+		currentSegment.x = targetPos.x;
+		currentSegment.y = targetPos.y;
+
+		targetPos.x = lastPosOfThisSegment.x;
+		targetPos.y = lastPosOfThisSegment.y;
+	}
+}
+
+/**********************************************************************************
+ * boring HTML WEB SERVER PART
  */
 var app = require('http').createServer(handler)
   , io = require('socket.io').listen(app)

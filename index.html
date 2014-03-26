@@ -10,6 +10,7 @@
 var canvas;
 var ctx;
 var statusTF;
+var socket;
 
 /**
  * entry point
@@ -43,12 +44,20 @@ var start = function() {
 
 	socket.on("update", function(data) {
 		
-		statusTF.textContent = "new data received";
+		statusTF.textContent = "status: " + data.status;
 
 		console.log("received update: " + JSON.stringify(data, undefined, 2));
 		drawGrid(data);
 	});
 };
+
+var turn = function(direction) {
+	socket.emit("turn", {direction: direction});
+}
+
+var restart = function() {
+	socket.emit("start", null);
+}
 
 var drawGrid = function(data) {
 	var tileSizeX = canvas.width / data.gridSizeX;
@@ -155,6 +164,22 @@ var drawGrid = function(data) {
 <canvas id="canvas" width="300" height="300"></canvas>
 <br>
 <p id="statusTextField"></p>
+
+<input type="button" value="up" onclick="turn(0);">
+<br>
+
+<input type="button" value="right" onclick="turn(1);">
+<br>
+
+<input type="button" value="down" onclick="turn(2);">
+<br>
+
+<input type="button" value="left" onclick="turn(3);">
+<br>
+
+<input type="button" value="restart" onclick="restart();">
+
+
 </body>
 </html>
 
